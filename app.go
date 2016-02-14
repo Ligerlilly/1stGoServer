@@ -3,6 +3,9 @@ import (
   "fmt"
   "net/http"
   "io/ioutil"
+  "log"
+  "database/sql"
+  _ "github.com/lib/pq"
 )
 
 type Page struct {
@@ -25,7 +28,16 @@ func loadPage(title string) (*Page, error) {
 }
 
 func handler(w http.ResponseWriter, r *http.Request)  {
-  fmt.Fprintf(w, "Hello world")
+  var owner string
+  db, err := sql.Open("postgres", "postgres://@localhost/rentals?sslmode=disable")
+  err = db.QueryRow("SELECT owner FROM rentals WHERE city = 'Detroit'").Scan(&owner)
+  if err == sql.ErrNoRows {
+    log.Fatal("No Results Found")
+  }
+  if err != nil {
+    log.Fatal(err)
+  }
+  fmt.Fprintf(w, "<h1>%s</h1>",owner)
 }
 
 func viewHandler(w http.ResponseWriter, r *http.Request) {
