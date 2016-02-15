@@ -13,6 +13,20 @@ type Page struct {
   body []byte
 }
 
+var db *sql.DB
+
+func init() {
+  var err error
+  db, err = sql.Open("postgres", "postgres://username:password@localhost/rentals?sslmode=disable")
+  if err != nil {
+    log.Fatal(err)
+  }
+
+  if err = db.Ping(); err != nil {
+    log.Fatal(err)
+  }
+}
+
 func (p *Page) save() error {
   filename := p.title + ".txt"
   return ioutil.WriteFile(filename, p.body, 0600)
@@ -29,8 +43,7 @@ func loadPage(title string) (*Page, error) {
 
 func handler(w http.ResponseWriter, r *http.Request)  {
   var owner string
-  db, err := sql.Open("postgres", "postgres://@localhost/rentals?sslmode=disable")
-  err = db.QueryRow("SELECT owner FROM rentals WHERE city = 'Detroit'").Scan(&owner)
+  err := db.QueryRow("SELECT owner FROM rentals WHERE city = 'Detroit'").Scan(&owner)
   if err == sql.ErrNoRows {
     log.Fatal("No Results Found")
   }
