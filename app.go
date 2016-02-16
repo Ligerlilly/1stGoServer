@@ -6,11 +6,19 @@ import (
   "log"
   "database/sql"
   _ "github.com/lib/pq"
+  "github.com/drone/routes"
+  "time"
+  "encoding/json"
 )
 
 type Page struct {
   title string
   body []byte
+}
+
+type Rental struct {
+    City string
+    Owner string
 }
 
 var db *sql.DB
@@ -41,16 +49,40 @@ func loadPage(title string) (*Page, error) {
   return &Page{title: title, body: body}, nil
 }
 
+func checkErr(err error) {
+    if err != nil {
+      log.Fatal(err)
+    }
+}
+
 func handler(w http.ResponseWriter, r *http.Request)  {
-  var owner string
-  err := db.QueryRow("SELECT owner FROM rentals WHERE city = 'Detroit'").Scan(&owner)
+ // params := r.URL.Query()
+  //uid := params.Get(":uid")
+  //var owner string
+  rows, err := db.Query("SELECT * FROM rentals;")
   if err == sql.ErrNoRows {
     log.Fatal("No Results Found")
   }
   if err != nil {
     log.Fatal(err)
   }
-  fmt.Fprintf(w, "<h1>%s</h1>",owner)
+  rentals := []Rental{}
+
+  for rows.Next() {
+      var owner string
+      var id int
+      var city string
+      var bedrooms int
+      var createdAt time.Time
+      var updatedAt time.Time
+      err = rows.Scan(&id, &city, &owner, &bedrooms, &createdAt, &updatedAt)
+      checkErr(err)
+      rentals = append(rentals, Rental{City: city, Owner: owner})
+      //fmt.Fprintf(w, "<h1>%s</h1><p>Onwer: %s</p>", city, owner)
+  }
+  js, err := json.Marshal(rentals)
+  fmt.Fprintf(w, "<p>%s</p>", js)
+
 }
 
 func viewHandler(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +92,10 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-  http.HandleFunc("/view/", viewHandler)
-  http.HandleFunc("/", handler)
+  mux := routes.New()
+  mux.Get("/", handler)
+  //http.HandleFunc("/view/", viewHandler)
+  //http.HandleFunc("/", handler)
+  http.Handle("/", mux)
   http.ListenAndServe(":3000", nil)
 }
