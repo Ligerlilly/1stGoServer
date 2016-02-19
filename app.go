@@ -19,13 +19,16 @@ type Page struct {
 type Rental struct {
     City string
     Owner string
+    Bedrooms int
+    CreatedAt time.Time
+    UpdatedAt time.Time
 }
 
 var db *sql.DB
 
 func init() {
   var err error
-  db, err = sql.Open("postgres", "postgres://username:password@localhost/rentals?sslmode=disable")
+  db, err = sql.Open("postgres", "postgres://username:password0@localhost/rentals?sslmode=disable")
   if err != nil {
     log.Fatal(err)
   }
@@ -77,12 +80,31 @@ func handler(w http.ResponseWriter, r *http.Request)  {
       var updatedAt time.Time
       err = rows.Scan(&id, &city, &owner, &bedrooms, &createdAt, &updatedAt)
       checkErr(err)
-      rentals = append(rentals, Rental{City: city, Owner: owner})
+      rentals = append(rentals, Rental{City: city, Owner: owner, Bedrooms: bedrooms, CreatedAt: createdAt, UpdatedAt: updatedAt})
       //fmt.Fprintf(w, "<h1>%s</h1><p>Onwer: %s</p>", city, owner)
   }
   js, err := json.Marshal(rentals)
-  fmt.Fprintf(w, "<p>%s</p>", js)
+  //fmt.Fprintf(w, "<p>%s</p>", js)
+  w.Header().Set("Content-Type", "application/json")
+  w.Write(js)
+  //json.NewEncoder(w).Encode(rentals)
+}
 
+func getRentalHandler(w http.ResponseWriter, r *http.Request) {
+    params := r.URL.Query()
+    id := params.Get(":id")
+    var owner string
+    var city string
+    var bedrooms int
+    var createdAt time.Time
+    var updatedAt time.Time
+    db.QueryRow("SELECT * FROM rentals WHERE id=$1;", id).Scan(&id, &city, &owner, &bedrooms, &createdAt, &updatedAt)
+    rentals := []Rental{}
+    rentals = append(rentals, Rental{City: city, Owner: owner, Bedrooms: bedrooms, CreatedAt: createdAt, UpdatedAt: updatedAt})
+    js, err := json.Marshal(rentals)
+    checkErr(err)
+    w.Header().Set("Content-Type", "application/json")
+    w.Write(js)
 }
 
 func viewHandler(w http.ResponseWriter, r *http.Request) {
@@ -94,6 +116,7 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
   mux := routes.New()
   mux.Get("/", handler)
+  mux.Get("/rentals/:id", getRentalHandler)
   //http.HandleFunc("/view/", viewHandler)
   //http.HandleFunc("/", handler)
   http.Handle("/", mux)
